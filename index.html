@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Contract Expiry Tracker</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --border: #334155;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --success: #10b981;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+    body { background-color: var(--bg); color: var(--text); padding: 2rem; max-width: 1000px; margin: auto; }
+
+    h1 { margin-bottom: 0.5rem; }
+    p.subtitle { color: var(--text-muted); margin-bottom: 2rem; }
+
+    .card {
+      background-color: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    form {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      align-items: end;
+    }
+
+    .form-group { display: flex; flex-direction: column; gap: 0.4rem; }
+    label { font-size: 0.85rem; color: var(--text-muted); }
+    input {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.6rem;
+      border-radius: 6px;
+      outline: none;
+    }
+    input:focus { border-color: var(--primary); }
+
+    button {
+      padding: 0.65rem 1rem;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); padding: 0.3rem 0.6rem; font-size: 0.8rem; }
+    .btn-danger:hover { background: var(--danger); color: #fff; }
+    .btn-cal { background: var(--border); color: var(--text); padding: 0.3rem 0.6rem; font-size: 0.8rem; margin-right: 0.4rem; }
+    .btn-cal:hover { background: #475569; }
+
+    table { width: 100%; border-collapse: collapse; text-align: left; }
+    th, td { padding: 0.85rem; border-bottom: 1px solid var(--border); }
+    th { color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; }
+
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.6rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+    .badge-critical { background: rgba(239, 68, 68, 0.2); color: var(--danger); border: 1px solid var(--danger); }
+    .badge-warning { background: rgba(245, 158, 11, 0.2); color: var(--warning); border: 1px solid var(--warning); }
+    .badge-ok { background: rgba(16, 185, 129, 0.2); color: var(--success); border: 1px solid var(--success); }
+  </style>
+</head>
+<body>
+
+  <h1>Contract Expiry Tracker</h1>
+  <p class="subtitle">Track expiration dates and download calendar alerts locally.</p>
+
+  <div class="card">
+    <form id="contract-form">
+      <div class="form-group">
+        <label for="title">Contract Name</label>
+        <input type="text" id="title" placeholder="e.g., Cloud Server Lease" required />
+      </div>
+      <div class="form-group">
+        <label for="vendor">Vendor / Partner</label>
+        <input type="text" id="vendor" placeholder="e.g., AWS" required />
+      </div>
+      <div class="form-group">
+        <label for="expiry">Expiry Date</label>
+        <input type="date" id="expiry" required />
+      </div>
+      <button type="submit" class="btn-primary">Add Contract</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <table id="contract-table">
+      <thead>
+        <tr>
+          <th>Contract</th>
+          <th>Vendor</th>
+          <th>Expiry Date</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="table-body"></tbody>
+    </table>
+  </div>
+
+  <script>
+    const form = document.getElementById("contract-form");
+    const tableBody = document.getElementById("table-body");
+
+    let contracts = JSON.parse(localStorage.getItem("contracts")) || [];
+
+    function saveContracts() {
+      localStorage.setItem("contracts", JSON.stringify(contracts));
+      renderContracts();
+    }
+
+    function calculateStatus(dateString) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const expiry = new Date(dateString);
+      const diffTime = expiry - today;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays < 0) {
+        return { label: Expired (${Math.abs(diffDays)}d ago), class: "badge-critical" };
+      } else if (diffDays <= 30) {
+        return { label: Expiring soon (${diffDays}d left), class: "badge-warning" };
+      } else {
+        return { label: Active (${diffDays}d left), class: "badge-ok" };
+      }
+    }
+
+    function generateICS(title, vendor, expiryDate) {
+      const formattedDate = expiryDate.replace(/-/g, "");
+      const icsData = [
+        "BEGIN:VCALENDAR",
+        "VERSION:2.0",
+        "PRODID:-//Contract Tracker//EN",
+        "BEGIN:VEVENT",
+        SUMMARY:Contract Expiry: ${title} (${vendor}),
+        DESCRIPTION:Reminder that the contract with ${vendor} expires today.,
+        DTSTART;VALUE=DATE:${formattedDate},
+        DTEND;VALUE=DATE:${formattedDate},
+        "BEGIN:VALARM",
+        "TRIGGER:-P7D",
+        "ACTION:DISPLAY",
+        "DESCRIPTION:Contract expiring in 7 days",
+        "END:VALARM",
+        "END:VEVENT",
+        "END:VCALENDAR"
+      ].join("\r\n");
+
+      const blob = new Blob([icsData], { type: "text/calendar;charset=utf-8" });
+      const link = document.createElement("a");
+      link.href = window.URL.createObjectURL(blob);
+      link.setAttribute("download", ${title.replace(/\s+/g, "_")}_reminder.ics);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    function renderContracts() {
+      tableBody.innerHTML = "";
+      
+      // Sort contracts by date ascending
+      contracts.sort((a, b) => new Date(a.expiry) - new Date(b.expiry));
+
+      contracts.forEach((c, index) => {
+        const status = calculateStatus(c.expiry);
+        const row = document.createElement("tr");
+
+        row.innerHTML = `
+          <td><strong>${c.title}</strong></td>
+          <td>${c.vendor}</td>
+          <td>${c.expiry}</td>
+          <td><span class="badge ${status.class}">${status.label}</span></td>
+          <td>
+            <button class="btn-cal" onclick="generateICS('${c.title}', '${c.vendor}', '${c.expiry}')">📅 Add Alert</button>
+            <button class="btn-danger" onclick="deleteContract(${index})">Delete</button>
+          </td>
+        `;
+        tableBody.appendChild(row);
+      });
+    }
+
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const newContract = {
+        title: document.getElementById("title").value.trim(),
+        vendor: document.getElementById("vendor").value.trim(),
+        expiry: document.getElementById("expiry").value
+      };
+      contracts.push(newContract);
+      saveContracts();
+      form.reset();
+    });
+
+    window.deleteContract = function(index) {
+      contracts.splice(index, 1);
+      saveContracts();
+    };
+
+    renderContracts();
+  </script>
+</body>
+</html>
