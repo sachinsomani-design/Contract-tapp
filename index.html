@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -6,158 +6,579 @@
   <title>Contract Expiry Tracker</title>
   <style>
     :root {
-      --bg: #0f172a;
-      --card-bg: #1e293b;
-      --border: #334155;
-      --text: #f8fafc;
-      --text-muted: #94a3b8;
-      --primary: #3b82f6;
-      --primary-hover: #2563eb;
-      --danger: #ef4444;
-      --warning: #f59e0b;
-      --success: #10b981;
+      --bg: #07111f;
+      --panel: rgba(15, 23, 42, 0.9);
+      --card: #12233d;
+      --border: rgba(148, 163, 184, 0.2);
+      --text: #e5eefc;
+      --text-soft: #a5b4cf;
+      --primary: #60a5fa;
+      --primary-dark: #2563eb;
+      --danger: #f87171;
+      --warning: #fbbf24;
+      --success: #34d399;
+      --shadow: 0 18px 40px rgba(2, 6, 23, 0.45);
     }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
-    body { background-color: var(--bg); color: var(--text); padding: 2rem; max-width: 1000px; margin: auto; }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: Inter, "Segoe UI", sans-serif; }
+    body {
+      background:
+        radial-gradient(circle at top left, rgba(96, 165, 250, 0.18), transparent 30%),
+        radial-gradient(circle at bottom right, rgba(52, 211, 153, 0.12), transparent 30%),
+        var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 32px 24px;
+    }
 
-    h1 { margin-bottom: 0.5rem; }
-    p.subtitle { color: var(--text-muted); margin-bottom: 2rem; }
+    .dashboard { max-width: 1200px; margin: 0 auto; }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 22px;
+      flex-wrap: wrap;
+    }
+
+    .topbar h1 {
+      font-size: clamp(2rem, 4vw, 2.8rem);
+      letter-spacing: -0.06em;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      color: var(--text-soft);
+      font-size: 1rem;
+    }
+
+    .status-chip {
+      background: rgba(96, 165, 250, 0.12);
+      color: var(--primary);
+      border: 1px solid rgba(96, 165, 250, 0.35);
+      padding: 0.7rem 1rem;
+      border-radius: 999px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 18px;
+      margin-bottom: 24px;
+    }
+
+    .stat-box {
+      background: linear-gradient(180deg, rgba(18, 35, 61, 0.95), rgba(10, 18, 30, 0.9));
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 20px;
+      box-shadow: var(--shadow);
+    }
+
+    .stat-box strong {
+      display: block;
+      font-size: 2rem;
+      margin-top: 6px;
+    }
+
+    .stat-label {
+      color: var(--text-soft);
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .warning { border-color: rgba(251, 191, 36, 0.35); }
+    .danger { border-color: rgba(248, 113, 113, 0.35); }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 22px;
+      align-items: start;
+    }
 
     .card {
-      background-color: var(--card-bg);
+      background: linear-gradient(180deg, rgba(18, 35, 61, 0.95), rgba(11, 20, 34, 0.98));
       border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 1.5rem;
-      margin-bottom: 2rem;
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      padding: 20px;
     }
+
+    .card h2 {
+      font-size: 1.1rem;
+      margin-bottom: 16px;
+      color: var(--text);
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .tab-btn {
+      flex: 1;
+      background: rgba(148, 163, 184, 0.08);
+      border: 1px solid var(--border);
+      color: var(--text-soft);
+      padding: 0.75rem 0.9rem;
+      border-radius: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .tab-btn.active {
+      background: rgba(96, 165, 250, 0.12);
+      color: var(--text);
+      border-color: rgba(96, 165, 250, 0.38);
+    }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
 
     form {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 1rem;
-      align-items: end;
+      gap: 16px;
     }
 
-    .form-group { display: flex; flex-direction: column; gap: 0.4rem; }
-    label { font-size: 0.85rem; color: var(--text-muted); }
-    input {
-      background: var(--bg);
+    .form-group { display: flex; flex-direction: column; gap: 0.5rem; }
+    label {
+      font-size: 0.8rem;
+      color: var(--text-soft);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      background: rgba(7, 17, 31, 0.8);
       border: 1px solid var(--border);
       color: var(--text);
-      padding: 0.6rem;
-      border-radius: 6px;
+      border-radius: 12px;
+      padding: 0.8rem 0.9rem;
       outline: none;
+      font-size: 0.96rem;
+      resize: vertical;
     }
-    input:focus { border-color: var(--primary); }
+
+    input:focus, select:focus, textarea:focus {
+      border-color: rgba(96, 165, 250, 0.75);
+      box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.12);
+    }
+
+    input::placeholder, textarea::placeholder { color: #7789ad; }
 
     button {
-      padding: 0.65rem 1rem;
       border: none;
-      border-radius: 6px;
-      font-weight: 600;
+      border-radius: 12px;
+      font-weight: 700;
       cursor: pointer;
-      transition: background 0.2s;
+      transition: transform 0.18s ease, opacity 0.2s ease, background 0.2s ease;
     }
-    .btn-primary { background: var(--primary); color: #fff; }
-    .btn-primary:hover { background: var(--primary-hover); }
-    .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); padding: 0.3rem 0.6rem; font-size: 0.8rem; }
-    .btn-danger:hover { background: var(--danger); color: #fff; }
-    .btn-cal { background: var(--border); color: var(--text); padding: 0.3rem 0.6rem; font-size: 0.8rem; margin-right: 0.4rem; }
-    .btn-cal:hover { background: #475569; }
 
-    table { width: 100%; border-collapse: collapse; text-align: left; }
-    th, td { padding: 0.85rem; border-bottom: 1px solid var(--border); }
-    th { color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; }
+    button:hover { transform: translateY(-1px); }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: white;
+      padding: 0.9rem 1rem;
+    }
+
+    .btn-secondary {
+      background: rgba(148, 163, 184, 0.12);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 0.75rem 0.9rem;
+      min-height: 42px;
+    }
+
+    .btn-danger {
+      background: rgba(248, 113, 113, 0.08);
+      color: var(--danger);
+      border: 1px solid rgba(248, 113, 113, 0.4);
+      padding: 0.35rem 0.6rem;
+      font-size: 0.8rem;
+    }
+
+    .btn-cal {
+      background: rgba(96, 165, 250, 0.12);
+      color: var(--text);
+      border: 1px solid rgba(96, 165, 250, 0.3);
+      padding: 0.35rem 0.6rem;
+      font-size: 0.8rem;
+      margin-right: 0.4rem;
+    }
+
+    .alert-list {
+      display: grid;
+      gap: 12px;
+    }
+
+    .alert-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      background: rgba(148, 163, 184, 0.05);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px;
+    }
+
+    .alert-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .alert-meta strong { font-size: 0.96rem; }
+    .muted { color: var(--text-soft); font-size: 0.82rem; }
+
+    .action-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .toolbar-group {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .toolbar-group input, .toolbar-group select { min-width: 180px; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    th, td {
+      padding: 14px 10px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+      text-align: left;
+      word-break: break-word;
+    }
+
+    th {
+      font-size: 0.76rem;
+      color: var(--text-soft);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
 
     .badge {
       display: inline-block;
-      padding: 0.25rem 0.6rem;
-      border-radius: 9999px;
-      font-size: 0.75rem;
+      padding: 0.42rem 0.7rem;
+      border-radius: 999px;
+      font-size: 0.74rem;
       font-weight: 700;
+      white-space: nowrap;
     }
-    .badge-critical { background: rgba(239, 68, 68, 0.2); color: var(--danger); border: 1px solid var(--danger); }
-    .badge-warning { background: rgba(245, 158, 11, 0.2); color: var(--warning); border: 1px solid var(--warning); }
-    .badge-ok { background: rgba(16, 185, 129, 0.2); color: var(--success); border: 1px solid var(--success); }
+
+    .badge-critical { background: rgba(248, 113, 113, 0.12); color: var(--danger); border: 1px solid rgba(248, 113, 113, 0.4); }
+    .badge-warning { background: rgba(251, 191, 36, 0.12); color: var(--warning); border: 1px solid rgba(251, 191, 36, 0.4); }
+    .badge-ok { background: rgba(52, 211, 153, 0.12); color: var(--success); border: 1px solid rgba(52, 211, 153, 0.4); }
+
+    .attachment-box {
+      display: grid;
+      gap: 10px;
+      background: rgba(148, 163, 184, 0.03);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+    }
+
+    .attachment-list {
+      display: grid;
+      gap: 8px;
+      color: var(--text-soft);
+      font-size: 0.85rem;
+    }
+
+    .attachment-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 10px;
+    }
+
+    .attachment-link {
+      color: var(--primary);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .empty-state {
+      text-align: center;
+      color: var(--text-soft);
+      padding: 18px 0;
+    }
+
+    @media (max-width: 900px) {
+      .main-grid { grid-template-columns: 1fr; }
+      .card { padding: 16px; }
+    }
   </style>
 </head>
 <body>
-
-  <h1>Contract Expiry Tracker</h1>
-  <p class="subtitle">Track expiration dates and download calendar alerts locally.</p>
-
-  <div class="card">
-    <form id="contract-form">
-      <div class="form-group">
-        <label for="title">Contract Name</label>
-        <input type="text" id="title" placeholder="e.g., Cloud Server Lease" required />
+  <div class="dashboard">
+    <div class="topbar">
+      <div>
+        <h1>Contract Expiry Tracker</h1>
+        <p class="subtitle">Track renewal dates, renewals due soon, and export reminder alerts.</p>
       </div>
-      <div class="form-group">
-        <label for="vendor">Vendor / Partner</label>
-        <input type="text" id="vendor" placeholder="e.g., AWS" required />
-      </div>
-      <div class="form-group">
-        <label for="expiry">Expiry Date</label>
-        <input type="date" id="expiry" required />
-      </div>
-      <button type="submit" class="btn-primary">Add Contract</button>
-    </form>
-  </div>
+      <div class="status-chip">Live monitoring</div>
+    </div>
 
-  <div class="card">
-    <table id="contract-table">
-      <thead>
-        <tr>
-          <th>Contract</th>
-          <th>Vendor</th>
-          <th>Expiry Date</th>
-          <th>Status</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody id="table-body"></tbody>
-    </table>
+    <div class="stats" id="stats"></div>
+
+    <div class="main-grid">
+      <div class="card">
+        <h2>Add Contract</h2>
+        <div class="tabs">
+          <button type="button" class="tab-btn active" data-tab="details">Details</button>
+          <button type="button" class="tab-btn" data-tab="attachments">Attachments</button>
+        </div>
+
+        <form id="contract-form">
+          <div class="tab-panel active" data-panel="details">
+            <div class="form-group">
+              <label for="title">Contract Name</label>
+              <input type="text" id="title" placeholder="e.g., Cloud Server Lease" required />
+            </div>
+            <div class="form-group">
+              <label for="vendor">Vendor / Partner</label>
+              <input type="text" id="vendor" placeholder="e.g., AWS" required />
+            </div>
+            <div class="form-group">
+              <label for="expiry">Expiry Date</label>
+              <input type="date" id="expiry" required />
+            </div>
+          </div>
+
+          <div class="tab-panel" data-panel="attachments">
+            <div class="attachment-box">
+              <div class="form-group">
+                <label for="attachment-notes">Attachment Notes</label>
+                <textarea id="attachment-notes" rows="3" placeholder="Add notes about the uploaded contract documents"></textarea>
+              </div>
+              <div class="form-group">
+                <label for="attachment-files">Upload Files</label>
+                <input id="attachment-files" type="file" multiple accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.csv,.xlsx,.txt" />
+              </div>
+              <div class="attachment-list" id="attachment-preview"></div>
+            </div>
+          </div>
+
+          <button type="submit" class="btn-primary">Add Contract</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h2>Upcoming Alerts</h2>
+        <div id="upcoming-list" class="alert-list"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top: 22px;">
+      <div class="action-row">
+        <div class="toolbar-group">
+          <input type="search" id="search-input" placeholder="Search contracts or vendors" aria-label="Search contracts" />
+          <select id="status-filter" aria-label="Filter by status">
+            <option value="all">All statuses</option>
+            <option value="active">Active</option>
+            <option value="warning">Expiring soon</option>
+            <option value="critical">Expired</option>
+          </select>
+        </div>
+        <div class="toolbar-group">
+          <button class="btn-secondary" id="export-csv">Export CSV</button>
+          <label class="btn-secondary" style="display:inline-flex; align-items:center; justify-content:center; cursor:pointer; padding-inline: 1rem;">
+            Import CSV
+            <input id="import-csv" type="file" accept=".csv,text/csv" style="display:none;" />
+          </label>
+          <button class="btn-secondary" id="clear-all">Clear All</button>
+        </div>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Contract</th>
+            <th>Vendor</th>
+            <th>Expiry Date</th>
+            <th>Status</th>
+            <th>Attachment</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
   </div>
 
   <script>
+    const STORAGE_KEY = "contract-tracker-contracts";
     const form = document.getElementById("contract-form");
     const tableBody = document.getElementById("table-body");
+    const stats = document.getElementById("stats");
+    const upcomingList = document.getElementById("upcoming-list");
+    const searchInput = document.getElementById("search-input");
+    const statusFilter = document.getElementById("status-filter");
+    const exportCsvBtn = document.getElementById("export-csv");
+    const importCsvInput = document.getElementById("import-csv");
+    const clearAllBtn = document.getElementById("clear-all");
+    const tabButtons = document.querySelectorAll(".tab-btn");
+    const tabPanels = document.querySelectorAll(".tab-panel");
+    const attachmentFilesInput = document.getElementById("attachment-files");
+    const attachmentPreview = document.getElementById("attachment-preview");
+    const attachmentNotes = document.getElementById("attachment-notes");
 
-    let contracts = JSON.parse(localStorage.getItem("contracts")) || [];
+    let attachmentDraft = [];
+
+    const defaultContracts = [
+      { title: "Cloud Hosting Renewal", vendor: "AWS", expiry: "2026-09-10", attachments: [], notes: "" },
+      { title: "Office Lease", vendor: "City Towers", expiry: "2026-08-18", attachments: [], notes: "" },
+      { title: "Security Software", vendor: "SentinelOne", expiry: "2026-11-02", attachments: [], notes: "" }
+    ];
+
+    function normalizeContract(contract) {
+      return {
+        title: contract.title || "",
+        vendor: contract.vendor || "",
+        expiry: contract.expiry || "",
+        attachments: Array.isArray(contract.attachments) ? contract.attachments : [],
+        notes: contract.notes || ""
+      };
+    }
+
+    let contracts = (JSON.parse(localStorage.getItem(STORAGE_KEY)) || defaultContracts).map(normalizeContract);
 
     function saveContracts() {
-      localStorage.setItem("contracts", JSON.stringify(contracts));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(contracts));
       renderContracts();
     }
 
-    function calculateStatus(dateString) {
+    function getDaysRemaining(dateString) {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       const expiry = new Date(dateString);
-      const diffTime = expiry - today;
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
+    }
+
+    function calculateStatus(dateString) {
+      const diffDays = getDaysRemaining(dateString);
 
       if (diffDays < 0) {
-        return { label: Expired (${Math.abs(diffDays)}d ago), class: "badge-critical" };
-      } else if (diffDays <= 30) {
-        return { label: Expiring soon (${diffDays}d left), class: "badge-warning" };
-      } else {
-        return { label: Active (${diffDays}d left), class: "badge-ok" };
+        return { label: `Expired (${Math.abs(diffDays)}d ago)`, class: "badge-critical", group: "critical" };
       }
+      if (diffDays <= 30) {
+        return { label: `Expiring soon (${diffDays}d left)`, class: "badge-warning", group: "warning" };
+      }
+      return { label: `Active (${diffDays}d left)`, class: "badge-ok", group: "active" };
+    }
+
+    function getFilteredContracts() {
+      const search = searchInput.value.trim().toLowerCase();
+      const selectedStatus = statusFilter.value;
+
+      return contracts.filter((contract) => {
+        const matchesSearch = !search ||
+          contract.title.toLowerCase().includes(search) ||
+          contract.vendor.toLowerCase().includes(search);
+
+        if (!matchesSearch) return false;
+        if (selectedStatus === "all") return true;
+
+        return calculateStatus(contract.expiry).group === selectedStatus;
+      });
+    }
+
+    function renderStats() {
+      const total = contracts.length;
+      const expiringSoon = contracts.filter((c) => {
+        const days = getDaysRemaining(c.expiry);
+        return days >= 0 && days <= 30;
+      }).length;
+      const expired = contracts.filter((c) => getDaysRemaining(c.expiry) < 0).length;
+      const active = contracts.filter((c) => getDaysRemaining(c.expiry) > 30).length;
+
+      stats.innerHTML = `
+        <div class="stat-box">
+          <span class="stat-label">Total</span>
+          <strong>${total}</strong>
+        </div>
+        <div class="stat-box warning">
+          <span class="stat-label">Expiring soon</span>
+          <strong>${expiringSoon}</strong>
+        </div>
+        <div class="stat-box danger">
+          <span class="stat-label">Expired</span>
+          <strong>${expired}</strong>
+        </div>
+        <div class="stat-box">
+          <span class="stat-label">Active</span>
+          <strong>${active}</strong>
+        </div>
+      `;
+    }
+
+    function renderUpcomingAlerts() {
+      const upcoming = [...contracts]
+        .sort((a, b) => new Date(a.expiry) - new Date(b.expiry))
+        .slice(0, 4);
+
+      if (!upcoming.length) {
+        upcomingList.innerHTML = '<div class="empty-state">No contracts scheduled yet.</div>';
+        return;
+      }
+
+      upcomingList.innerHTML = upcoming.map((contract) => {
+        const status = calculateStatus(contract.expiry);
+        const days = getDaysRemaining(contract.expiry);
+
+        return `
+          <div class="alert-item">
+            <div class="alert-meta">
+              <strong>${contract.title}</strong>
+              <span class="muted">${contract.vendor} • ${contract.expiry}</span>
+            </div>
+            <div class="badge ${status.class}">${days < 0 ? 'Past due' : `${days}d left`}</div>
+          </div>
+        `;
+      }).join('');
     }
 
     function generateICS(title, vendor, expiryDate) {
+      const safeTitle = (title || "Contract").replace(/[^a-z0-9]+/gi, "_").replace(/^_|_$/g, "") || "contract";
       const formattedDate = expiryDate.replace(/-/g, "");
       const icsData = [
         "BEGIN:VCALENDAR",
         "VERSION:2.0",
         "PRODID:-//Contract Tracker//EN",
         "BEGIN:VEVENT",
-        SUMMARY:Contract Expiry: ${title} (${vendor}),
-        DESCRIPTION:Reminder that the contract with ${vendor} expires today.,
-        DTSTART;VALUE=DATE:${formattedDate},
-        DTEND;VALUE=DATE:${formattedDate},
+        `UID:${safeTitle}-${Date.now()}@contract-tracker`,
+        `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, "").split(".")[0]}Z`,
+        `SUMMARY:Contract Expiry: ${title} (${vendor})`,
+        `DESCRIPTION:Reminder that the contract with ${vendor} expires on ${expiryDate}.`,
+        `DTSTART;VALUE=DATE:${formattedDate}`,
+        `DTEND;VALUE=DATE:${formattedDate}`,
         "BEGIN:VALARM",
         "TRIGGER:-P7D",
         "ACTION:DISPLAY",
@@ -168,31 +589,142 @@
       ].join("\r\n");
 
       const blob = new Blob([icsData], { type: "text/calendar;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
-      link.href = window.URL.createObjectURL(blob);
-      link.setAttribute("download", ${title.replace(/\s+/g, "_")}_reminder.ics);
+      link.href = url;
+      link.download = `${safeTitle}_reminder.ics`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+
+    function exportCSV() {
+      const rows = [
+        ["title", "vendor", "expiry", "attachments"],
+        ...contracts.map((contract) => [
+          contract.title,
+          contract.vendor,
+          contract.expiry,
+          (contract.attachments || []).map((file) => file.name).join("; ")
+        ])
+      ];
+
+      const csvContent = rows.map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(",")).join("\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "contracts.csv";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+
+    function importCSV(file) {
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const text = event.target.result;
+        const lines = text.split(/\r?\n/).filter(Boolean);
+        if (lines.length < 2) return;
+
+        const parsed = [];
+        for (let i = 1; i < lines.length; i += 1) {
+          const row = lines[i].split(",").map((cell) => cell.replace(/^"|"$/g, "").replace(/""/g, '"'));
+          if (row.length < 3) continue;
+          const [title, vendor, expiry] = row;
+          if (title && vendor && expiry) {
+            parsed.push({
+              title: title.trim(),
+              vendor: vendor.trim(),
+              expiry: expiry.trim(),
+              attachments: [],
+              notes: ""
+            });
+          }
+        }
+
+        if (!parsed.length) {
+          alert("No valid contract rows were found in the CSV file.");
+          return;
+        }
+
+        contracts = parsed;
+        saveContracts();
+      };
+      reader.readAsText(file);
+    }
+
+    function readFileAsDataURL(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve({
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          dataUrl: reader.result
+        });
+        reader.onerror = () => reject(new Error("Could not read file."));
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function renderAttachmentPreview() {
+      if (!attachmentDraft.length) {
+        attachmentPreview.innerHTML = '<span class="muted">No files attached yet.</span>';
+        return;
+      }
+
+      attachmentPreview.innerHTML = attachmentDraft.map((file) => `
+        <div class="attachment-item">
+          <a class="attachment-link" href="${file.dataUrl}" target="_blank" download="${file.name}">${file.name}</a>
+          <button type="button" class="btn-danger" data-remove-file="${file.name}">Remove</button>
+        </div>
+      `).join("");
+
+      attachmentPreview.querySelectorAll("[data-remove-file]").forEach((button) => {
+        button.addEventListener("click", () => {
+          attachmentDraft = attachmentDraft.filter((file) => file.name !== button.dataset.removeFile);
+          renderAttachmentPreview();
+        });
+      });
     }
 
     function renderContracts() {
       tableBody.innerHTML = "";
-      
-      // Sort contracts by date ascending
-      contracts.sort((a, b) => new Date(a.expiry) - new Date(b.expiry));
+      const filteredContracts = getFilteredContracts();
+      filteredContracts.sort((a, b) => new Date(a.expiry) - new Date(b.expiry));
+      renderStats();
+      renderUpcomingAlerts();
 
-      contracts.forEach((c, index) => {
-        const status = calculateStatus(c.expiry);
+      if (!filteredContracts.length) {
+        tableBody.innerHTML = '<tr><td colspan="6" class="empty-state">No matching contracts found.</td></tr>';
+        return;
+      }
+
+      filteredContracts.forEach((contract) => {
+        const status = calculateStatus(contract.expiry);
         const row = document.createElement("tr");
+        const index = contracts.findIndex((item) => item.title === contract.title && item.vendor === contract.vendor && item.expiry === contract.expiry);
+        const attachments = Array.isArray(contract.attachments) ? contract.attachments : [];
+        const attachmentMarkup = attachments.length
+          ? attachments.map((file) => `
+              <div>
+                <a class="attachment-link" href="${file.dataUrl}" target="_blank" download="${file.name}">${file.name}</a>
+              </div>
+            `).join("")
+          : '<span class="muted">No attachment</span>';
 
         row.innerHTML = `
-          <td><strong>${c.title}</strong></td>
-          <td>${c.vendor}</td>
-          <td>${c.expiry}</td>
+          <td><strong>${contract.title}</strong></td>
+          <td>${contract.vendor}</td>
+          <td>${contract.expiry}</td>
           <td><span class="badge ${status.class}">${status.label}</span></td>
+          <td>${attachmentMarkup}</td>
           <td>
-            <button class="btn-cal" onclick="generateICS('${c.title}', '${c.vendor}', '${c.expiry}')">📅 Add Alert</button>
+            <button class="btn-cal" onclick="generateICS('${contract.title.replace(/'/g, "\\'")}', '${contract.vendor.replace(/'/g, "\\'")}', '${contract.expiry}')">📅 Add Alert</button>
             <button class="btn-danger" onclick="deleteContract(${index})">Delete</button>
           </td>
         `;
@@ -200,19 +732,64 @@
       });
     }
 
-    form.addEventListener("submit", (e) => {
-      e.preventDefault();
+    tabButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        tabButtons.forEach((btn) => btn.classList.toggle("active", btn === button));
+        tabPanels.forEach((panel) => panel.classList.toggle("active", panel.dataset.panel === button.dataset.tab));
+      });
+    });
+
+    attachmentFilesInput.addEventListener("change", async (event) => {
+      const files = Array.from(event.target.files || []);
+      if (!files.length) return;
+
+      for (const file of files) {
+        const fileData = await readFileAsDataURL(file);
+        attachmentDraft.push(fileData);
+      }
+
+      renderAttachmentPreview();
+      event.target.value = "";
+    });
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
       const newContract = {
         title: document.getElementById("title").value.trim(),
         vendor: document.getElementById("vendor").value.trim(),
-        expiry: document.getElementById("expiry").value
+        expiry: document.getElementById("expiry").value,
+        attachments: attachmentDraft,
+        notes: attachmentNotes.value.trim()
       };
+
+      if (!newContract.title || !newContract.vendor || !newContract.expiry) return;
+
       contracts.push(newContract);
       saveContracts();
       form.reset();
+      attachmentDraft = [];
+      attachmentNotes.value = "";
+      renderAttachmentPreview();
     });
 
-    window.deleteContract = function(index) {
+    searchInput.addEventListener("input", renderContracts);
+    statusFilter.addEventListener("change", renderContracts);
+    exportCsvBtn.addEventListener("click", exportCSV);
+    importCsvInput.addEventListener("change", (event) => {
+      const file = event.target.files[0];
+      importCSV(file);
+      event.target.value = "";
+    });
+
+    clearAllBtn.addEventListener("click", () => {
+      if (contracts.length && confirm("Delete all contracts?")) {
+        contracts = [];
+        saveContracts();
+      }
+    });
+
+    window.deleteContract = function (index) {
+      if (index < 0) return;
       contracts.splice(index, 1);
       saveContracts();
     };
