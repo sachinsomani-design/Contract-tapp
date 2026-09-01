@@ -135,6 +135,44 @@
       border-color: rgba(17, 24, 39, 0.12);
     }
 
+    .place-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 0 0 16px;
+    }
+
+    .place-tab {
+      padding: 0.6rem 0.85rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: #f7f5f2;
+      color: var(--text-soft);
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .place-tab.active {
+      background: var(--primary-dark);
+      color: #fff;
+      border-color: var(--primary-dark);
+    }
+
+    .sheet-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      background: rgba(17, 24, 39, 0.03);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 10px 12px;
+      font-weight: 700;
+      color: var(--primary-dark);
+      margin: 8px 0;
+    }
+
     .reminder-box {
       display: grid;
       gap: 10px;
@@ -394,6 +432,14 @@
               <input type="text" id="vendor" placeholder="e.g., AWS" required />
             </div>
             <div class="form-group">
+              <label for="contract-place">Contract Place / Location</label>
+              <input type="text" id="contract-place" placeholder="e.g., Mumbai Office, Factory, Delhi Branch" required />
+            </div>
+            <div class="form-group">
+              <label for="contract-type">Contract Type</label>
+              <input type="text" id="contract-type" placeholder="e.g., Lease, SaaS, Maintenance, Service" />
+            </div>
+            <div class="form-group">
               <label for="expiry">Expiry Date</label>
               <input type="date" id="expiry" required />
             </div>
@@ -461,7 +507,7 @@
     <div class="card" style="margin-top: 22px;">
       <div class="action-row">
         <div class="toolbar-group">
-          <input type="search" id="search-input" placeholder="Search contracts or vendors" aria-label="Search contracts" />
+          <input type="search" id="search-input" placeholder="Search contracts, vendors or places" aria-label="Search contracts" />
           <select id="status-filter" aria-label="Filter by status">
             <option value="all">All statuses</option>
             <option value="active">Active</option>
@@ -479,11 +525,15 @@
         </div>
       </div>
 
+      <div class="place-tabs" id="place-tabs"></div>
+
       <table>
         <thead>
           <tr>
             <th>Contract</th>
+            <th>Place</th>
             <th>Vendor</th>
+            <th>Type</th>
             <th>Expiry Date</th>
             <th>Status</th>
             <th>Attachment</th>
@@ -496,7 +546,7 @@
   </div>
 
   <script>
-    const STORAGE_KEY = "contract-tracker-contracts";
+    const STORAGE_KEY = "contract-tracker-contracts-v2";
     const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/1ZBkrnEG-QfjnsLq9c4fIeNuroKYAvhymg4n-GF2HJVA/export?format=csv&gid=1812251719";
     const form = document.getElementById("contract-form");
     const tableBody = document.getElementById("table-body");
@@ -521,31 +571,88 @@
     const syncStatusEl = document.getElementById("sync-status");
     const syncSheetBtn = document.getElementById("sync-sheet-btn");
     const previewSheetBtn = document.getElementById("preview-sheet-btn");
-
+    const reminderToInput = document.getElementById("reminder-to");
     const LEGAL_EMAIL = "legal@tractorjunction.com";
 
     let attachmentDraft = [];
+    let selectedPlace = "all";
+    let contracts = [];
+
+    function textValue(value) {
+      return (value == null ? "" : String(value)).trim();
+    }
 
     function formatGoogleDate(dateString) {
       const date = new Date(dateString);
-      if (Number.isNaN(date.getTime())) return new Date().toISOString().slice(0, 10).replace(/-/g, "");
+      if (Number.isNaN(date.getTime())) return "";
       const yyyy = date.getFullYear();
       const mm = String(date.getMonth() + 1).padStart(2, "0");
       const dd = String(date.getDate()).padStart(2, "0");
       return `${yyyy}${mm}${dd}`;
     }
 
+    function getDaysRemaining(dateString) {
+      const expiry = new Date(dateString);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      return Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
+    }
+
+    function calculateStatus(dateString) {
+      const diffDays = getDaysRemaining(dateString);
+      if (diffDays < 0) return { label: `Expired (${Math.abs(diffDays)}d ago)`, class: "badge-critical", group: "critical" };
+      if (diffDays <= 30) return { label: `Expiring soon (${diffDays}d left)`, class: "badge-warning", group: "warning" };
+      return { label: `Active (${diffDays}d left)`, class: "badge-ok", group: "active" };
+    }
+
+    function normalizeContract(contract) {
+      return {
+        title: textValue(contract.title || contract.contractName || contract["Contract Name"] || contract["Contract"] || contract["contract name"] || ""),
+        vendor: textValue(contract.vendor || contract.supplier || contract["Vendor"] || contract["Supplier"] || contract["vendor name"] || ""),
+        place: textValue(contract.place || contract.location || contract.site || contract["Contract Place"] || contract["contract place"] || contract["Business Unit"] || contract.department || "General"),
+        type: textValue(contract.type || contract.category || contract["Contract Type"] || contract["contract type"] || contract["Agreement Type"] || "General"),
+        expiry: textValue(contract.expiry || contract["Expiry Date"] || contract["Expiry"] || contract["Contract Expiry"] || contract["end date"] || contract["renewal date"] || ""),
+        attachments: Array.isArray(contract.attachments) ? contract.attachments : [],
+        notes: textValue(contract.notes || contract["Notes"] || contract["remarks"] || "")
+      };
+    }
+
+    const defaultContracts = [
+      { title: "Office Lease", vendor: "City Towers", place: "Bengaluru Office", type: "Lease", expiry: "2026-08-18", attachments: [], notes: "" },
+      { title: "Cloud Hosting Renewal", vendor: "AWS", place: "Mumbai Office", type: "SaaS", expiry: "2026-09-10", attachments: [], notes: "" },
+      { title: "Security Software", vendor: "SentinelOne", place: "Hyderabad Factory", type: "Software", expiry: "2026-11-02", attachments: [], notes: "" },
+      { title: "Vehicle Maintenance", vendor: "Jio Fleet", place: "Delhi Branch", type: "Maintenance", expiry: "2026-07-25", attachments: [], notes: "" },
+      { title: "Power Backup Service", vendor: "Tata Power", place: "Pune Site", type: "Service", expiry: "2026-12-04", attachments: [], notes: "" }
+    ];
+
+    function loadContracts() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
+        if (Array.isArray(saved) && saved.length) {
+          contracts = saved.map(normalizeContract);
+          return;
+        }
+      } catch (error) {
+        console.warn("Stored contract data could not be parsed.", error);
+      }
+      contracts = defaultContracts.map(normalizeContract);
+    }
+
+    function saveContracts() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(contracts));
+      renderContracts();
+    }
+
     function buildReminderContent(contract) {
       const status = calculateStatus(contract.expiry);
       const days = getDaysRemaining(contract.expiry);
       const statusText = days < 0 ? `expired ${Math.abs(days)} days ago` : `due in ${days} days`;
-
       return {
         subject: `Contract Reminder: ${contract.title} (${contract.vendor})`,
         body: [
           "Hello Legal Team,",
           "",
-          `This is an automated reminder for the ${contract.title} contract with ${contract.vendor}.`,
+          `This is an automated reminder for the ${contract.title} contract at ${contract.place || 'General'} with ${contract.vendor}.`,
           `Current status: ${status.label}.`,
           `Expiry date: ${contract.expiry}.`,
           `Tracker status: ${statusText}.`,
@@ -559,144 +666,49 @@
       };
     }
 
-    function openReminderEmail(contract) {
-      const reminder = buildReminderContent(contract);
-      const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(LEGAL_EMAIL)}&su=${encodeURIComponent(reminder.subject)}&body=${encodeURIComponent(reminder.body)}`;
-      window.open(gmailUrl, "_blank");
+    function getReminderRecipient() {
+      return (reminderToInput && reminderToInput.value ? reminderToInput.value : LEGAL_EMAIL).trim() || LEGAL_EMAIL;
     }
 
-    function openCalendarReminder(contract) {
-      const title = `${contract.title} Contract Reminder`;
+    function openGoogleLink(url) {
+      const popup = window.open(url, "_blank", "noopener,noreferrer");
+      if (!popup) {
+        window.location.href = url;
+      }
+    }
+
+    function openReminderEmail(contract) {
+      const reminder = buildReminderContent(contract);
+      const to = getReminderRecipient();
+      const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to)}&su=${encodeURIComponent(reminder.subject)}&body=${encodeURIComponent(reminder.body)}`;
+      openGoogleLink(gmailUrl);
+    }
+
+    function buildGoogleCalendarUrl(contract) {
+      const title = `${contract.title} - ${contract.place || "General"}`;
       const eventDate = new Date(contract.expiry);
       const startDate = formatGoogleDate(contract.expiry);
       const endDateObj = new Date(eventDate);
       endDateObj.setDate(endDateObj.getDate() + 1);
       const endDate = formatGoogleDate(endDateObj.toISOString().slice(0, 10));
       const recurrence = "RRULE:FREQ=DAILY;INTERVAL=30";
+      const recipient = getReminderRecipient();
       const details = [
         `Contract: ${contract.title}`,
+        `Place: ${contract.place || "General"}`,
         `Vendor: ${contract.vendor}`,
+        `Type: ${contract.type || "General"}`,
         `Expiry Date: ${contract.expiry}`,
         `Tracker Status: ${calculateStatus(contract.expiry).label}`,
-        `Reminder sent to: ${LEGAL_EMAIL}`,
+        `Reminder sent to: ${recipient}`,
         "Recurring: Every 30 days"
       ].join("\n");
 
-      const calendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&details=${encodeURIComponent(details)}&location=${encodeURIComponent("Legal Team")}&dates=${startDate}/${endDate}&addattendees=${encodeURIComponent(LEGAL_EMAIL)}&recur=${encodeURIComponent(recurrence)}&sf=true&output=xml`;
-      window.open(calendarUrl, "_blank");
+      return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&details=${encodeURIComponent(details)}&location=${encodeURIComponent(contract.place || "General")}&dates=${startDate}/${endDate}&addattendees=${encodeURIComponent(recipient)}&recur=${encodeURIComponent(recurrence)}&sf=true&output=xml`;
     }
 
-    const defaultContracts = [
-      { title: "Cloud Hosting Renewal", vendor: "AWS", expiry: "2026-09-10", attachments: [], notes: "" },
-      { title: "Office Lease", vendor: "City Towers", expiry: "2026-08-18", attachments: [], notes: "" },
-      { title: "Security Software", vendor: "SentinelOne", expiry: "2026-11-02", attachments: [], notes: "" }
-    ];
-
-    function normalizeContract(contract) {
-      return {
-        title: contract.title || "",
-        vendor: contract.vendor || "",
-        expiry: contract.expiry || "",
-        attachments: Array.isArray(contract.attachments) ? contract.attachments : [],
-        notes: contract.notes || ""
-      };
-    }
-
-    let contracts = (JSON.parse(localStorage.getItem(STORAGE_KEY)) || defaultContracts).map(normalizeContract);
-
-    function saveContracts() {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(contracts));
-      renderContracts();
-    }
-
-    function getDaysRemaining(dateString) {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const expiry = new Date(dateString);
-      return Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
-    }
-
-    function calculateStatus(dateString) {
-      const diffDays = getDaysRemaining(dateString);
-
-      if (diffDays < 0) {
-        return { label: `Expired (${Math.abs(diffDays)}d ago)`, class: "badge-critical", group: "critical" };
-      }
-      if (diffDays <= 30) {
-        return { label: `Expiring soon (${diffDays}d left)`, class: "badge-warning", group: "warning" };
-      }
-      return { label: `Active (${diffDays}d left)`, class: "badge-ok", group: "active" };
-    }
-
-    function getFilteredContracts() {
-      const search = searchInput.value.trim().toLowerCase();
-      const selectedStatus = statusFilter.value;
-
-      return contracts.filter((contract) => {
-        const matchesSearch = !search ||
-          contract.title.toLowerCase().includes(search) ||
-          contract.vendor.toLowerCase().includes(search);
-
-        if (!matchesSearch) return false;
-        if (selectedStatus === "all") return true;
-
-        return calculateStatus(contract.expiry).group === selectedStatus;
-      });
-    }
-
-    function renderStats() {
-      const total = contracts.length;
-      const expiringSoon = contracts.filter((c) => {
-        const days = getDaysRemaining(c.expiry);
-        return days >= 0 && days <= 30;
-      }).length;
-      const expired = contracts.filter((c) => getDaysRemaining(c.expiry) < 0).length;
-      const active = contracts.filter((c) => getDaysRemaining(c.expiry) > 30).length;
-
-      stats.innerHTML = `
-        <div class="stat-box">
-          <span class="stat-label">Total</span>
-          <strong>${total}</strong>
-        </div>
-        <div class="stat-box warning">
-          <span class="stat-label">Expiring soon</span>
-          <strong>${expiringSoon}</strong>
-        </div>
-        <div class="stat-box danger">
-          <span class="stat-label">Expired</span>
-          <strong>${expired}</strong>
-        </div>
-        <div class="stat-box">
-          <span class="stat-label">Active</span>
-          <strong>${active}</strong>
-        </div>
-      `;
-    }
-
-    function renderUpcomingAlerts() {
-      const upcoming = [...contracts]
-        .sort((a, b) => new Date(a.expiry) - new Date(b.expiry))
-        .slice(0, 4);
-
-      if (!upcoming.length) {
-        upcomingList.innerHTML = '<div class="empty-state">No contracts scheduled yet.</div>';
-        return;
-      }
-
-      upcomingList.innerHTML = upcoming.map((contract) => {
-        const status = calculateStatus(contract.expiry);
-        const days = getDaysRemaining(contract.expiry);
-
-        return `
-          <div class="alert-item">
-            <div class="alert-meta">
-              <strong>${contract.title}</strong>
-              <span class="muted">${contract.vendor} • ${contract.expiry}</span>
-            </div>
-            <div class="badge ${status.class}">${days < 0 ? 'Past due' : `${days}d left`}</div>
-          </div>
-        `;
-      }).join('');
+    function openCalendarReminder(contract) {
+      openGoogleLink(buildGoogleCalendarUrl(contract));
     }
 
     function generateICS(title, vendor, expiryDate) {
@@ -710,7 +722,7 @@
         `UID:${safeTitle}-${Date.now()}@contract-tracker`,
         `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, "").split(".")[0]}Z`,
         `SUMMARY:Contract Expiry: ${title} (${vendor})`,
-        `DESCRIPTION:Reminder that the contract with ${vendor} expires on ${expiryDate}.`,
+        `DESCRIPTION:Reminder for the contract expiry on ${expiryDate}.`,
         `DTSTART;VALUE=DATE:${formattedDate}`,
         `DTEND;VALUE=DATE:${formattedDate}`,
         "BEGIN:VALARM",
@@ -735,8 +747,8 @@
 
     function parseCSV(text) {
       const rows = [];
-      let currentRow = [];
-      let currentValue = "";
+      let row = [];
+      let value = "";
       let inQuotes = false;
 
       for (let i = 0; i < text.length; i += 1) {
@@ -745,31 +757,31 @@
 
         if (char === '"') {
           if (inQuotes && nextChar === '"') {
-            currentValue += '"';
+            value += '"';
             i += 1;
           } else {
             inQuotes = !inQuotes;
           }
         } else if (char === ',' && !inQuotes) {
-          currentRow.push(currentValue);
-          currentValue = "";
+          row.push(value);
+          value = "";
         } else if ((char === '\n' || char === '\r') && !inQuotes) {
           if (char === '\r' && nextChar === '\n') i += 1;
-          currentRow.push(currentValue);
-          if (currentRow.some((cell) => cell.trim() !== "")) {
-            rows.push(currentRow);
+          row.push(value);
+          if (row.some((cell) => textValue(cell) !== "")) {
+            rows.push(row);
           }
-          currentRow = [];
-          currentValue = "";
+          row = [];
+          value = "";
         } else {
-          currentValue += char;
+          value += char;
         }
       }
 
-      if (currentValue.length || currentRow.length) {
-        currentRow.push(currentValue);
-        if (currentRow.some((cell) => cell.trim() !== "")) {
-          rows.push(currentRow);
+      if (value.length || row.length) {
+        row.push(value);
+        if (row.some((cell) => textValue(cell) !== "")) {
+          rows.push(row);
         }
       }
 
@@ -777,31 +789,39 @@
     }
 
     function buildSheetExportUrl(rawUrl) {
-      const sheetUrl = (rawUrl || DEFAULT_SHEET_URL).trim();
-      if (!sheetUrl) return DEFAULT_SHEET_URL;
-      if (sheetUrl.includes('/export?')) return sheetUrl;
-
-      const gid = (sheetGidInput.value || "1812251719").trim();
-      const baseUrl = sheetUrl.replace(/\/edit.*$/, '').replace(/\?.*$/, '');
-      return `${baseUrl}/export?format=csv&gid=${gid}`;
+      const url = textValue(rawUrl || DEFAULT_SHEET_URL);
+      if (!url) return DEFAULT_SHEET_URL;
+      if (url.includes("/export?")) return url;
+      const gid = textValue(sheetGidInput.value || "1812251719");
+      const base = url.replace(/\/edit.*$/, "").replace(/\?.*$/, "");
+      return `${base}/export?format=csv&gid=${gid}`;
     }
 
-    function normalizeSheetContract(row) {
-      const keyMap = {};
-      row.forEach((value, index) => {
-        keyMap[index] = value ? value.trim() : "";
-      });
-
-      const title = row.findIndex((value) => /contract|name/i.test(value)) >= 0
-        ? row[row.findIndex((value) => /contract|name/i.test(value) && value)]
-        : "";
-
-      return {
-        title: row[0] || "",
-        vendor: row[1] || "",
-        expiry: row[2] || "",
-        notes: row[3] || ""
+    function mapContractFromRow(row, headers) {
+      const values = row.map((cell) => textValue(cell));
+      const findIndex = (aliases) => {
+        const normalizedHeaders = headers.map((header) => header.toLowerCase());
+        for (const alias of aliases) {
+          const index = normalizedHeaders.findIndex((header) => header.includes(alias));
+          if (index >= 0) return index;
+        }
+        return -1;
       };
+
+      const titleIndex = findIndex(["contract name", "contract", "title", "name"]);
+      const vendorIndex = findIndex(["vendor", "supplier", "vendor name"]);
+      const placeIndex = findIndex(["place", "location", "site", "branch", "business unit", "department"]);
+      const typeIndex = findIndex(["type", "category", "agreement type", "contract type"]);
+      const expiryIndex = findIndex(["expiry", "expiry date", "end date", "renewal date"]);
+
+      return normalizeContract({
+        title: titleIndex >= 0 ? values[titleIndex] : "",
+        vendor: vendorIndex >= 0 ? values[vendorIndex] : "",
+        place: placeIndex >= 0 ? values[placeIndex] : "General",
+        type: typeIndex >= 0 ? values[typeIndex] : "General",
+        expiry: expiryIndex >= 0 ? values[expiryIndex] : "",
+        notes: ""
+      });
     }
 
     async function syncFromGoogleSheet() {
@@ -811,62 +831,117 @@
       try {
         const response = await fetch(exportUrl, { mode: "cors" });
         if (!response.ok) throw new Error(`Google Sheet request failed: ${response.status}`);
-
         const csvText = await response.text();
         const rows = parseCSV(csvText);
+        if (rows.length < 2) throw new Error("The sheet appears empty or the export is not readable.");
 
-        if (rows.length < 2) {
-          throw new Error("The sheet appears empty or the export is not readable.");
-        }
+        const headers = rows[0].map((header) => textValue(header).toLowerCase());
+        const imported = rows.slice(1)
+          .filter((row) => row.some((cell) => textValue(cell) !== ""))
+          .map((row) => mapContractFromRow(row, headers))
+          .filter((contract) => contract.title && contract.expiry);
 
-        const sheetRows = rows.slice(1).filter((row) => row.some((cell) => (cell || "").trim()));
-        const parsedContracts = sheetRows.map((row) => {
-          const values = row.map((cell) => (cell || "").trim());
-          const title = values[0] || "";
-          const vendor = values[1] || "";
-          const expiry = values[2] || "";
-          const notes = values[3] || "";
-
-          return { title, vendor, expiry, attachments: [], notes };
-        }).filter((contract) => contract.title && contract.expiry);
-
-        if (!parsedContracts.length) {
-          throw new Error("No valid contract rows were found. Please confirm the sheet fields are in the order: Contract, Vendor, Expiry Date.");
+        if (!imported.length) {
+          throw new Error("No valid contract rows were found. Check that the sheet has Contract, Place, Vendor, Type and Expiry columns.");
         }
 
         const merged = [...contracts];
-        parsedContracts.forEach((contract) => {
-          const key = `${contract.title}::${contract.vendor}::${contract.expiry}`;
-          const existingIndex = merged.findIndex((item) => `${item.title}::${item.vendor}::${item.expiry}` === key);
-          if (existingIndex >= 0) {
-            merged[existingIndex] = { ...merged[existingIndex], ...contract };
-          } else {
-            merged.push(contract);
-          }
+        imported.forEach((contract) => {
+          const key = `${contract.title}|${contract.vendor}|${contract.place}|${contract.expiry}`;
+          const index = merged.findIndex((item) => `${item.title}|${item.vendor}|${item.place}|${item.expiry}` === key);
+          if (index >= 0) merged[index] = { ...merged[index], ...contract };
+          else merged.push(contract);
         });
 
         contracts = merged;
         saveContracts();
-        syncStatusEl.textContent = `Synced ${parsedContracts.length} contracts from the Google Sheet.`;
+        syncStatusEl.textContent = `Synced ${imported.length} contracts from the Google Sheet.`;
       } catch (error) {
         syncStatusEl.textContent = error.message || "Unable to sync from Google Sheet right now.";
         console.error(error);
       }
     }
 
-    function exportCSV() {
-      const rows = [
-        ["title", "vendor", "expiry", "attachments"],
-        ...contracts.map((contract) => [
-          contract.title,
-          contract.vendor,
-          contract.expiry,
-          (contract.attachments || []).map((file) => file.name).join("; ")
-        ])
-      ];
+    function getFilteredContracts() {
+      const search = searchInput.value.trim().toLowerCase();
+      const selectedStatus = statusFilter.value;
 
-      const csvContent = rows.map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(",")).join("\n");
-      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      return contracts.filter((contract) => {
+        const matchesPlace = selectedPlace === "all" || (contract.place || "General") === selectedPlace;
+        const matchesSearch = !search || [contract.title, contract.vendor, contract.place, contract.type].some((field) => (field || "").toLowerCase().includes(search));
+        const matchesStatus = selectedStatus === "all" || calculateStatus(contract.expiry).group === selectedStatus;
+        return matchesPlace && matchesSearch && matchesStatus;
+      });
+    }
+
+    function renderStats() {
+      const total = contracts.length;
+      const expiringSoon = contracts.filter((contract) => {
+        const days = getDaysRemaining(contract.expiry);
+        return days >= 0 && days <= 30;
+      }).length;
+      const expired = contracts.filter((contract) => getDaysRemaining(contract.expiry) < 0).length;
+      const active = contracts.filter((contract) => getDaysRemaining(contract.expiry) > 30).length;
+
+      stats.innerHTML = `
+        <div class="stat-box"><span class="stat-label">Total</span><strong>${total}</strong></div>
+        <div class="stat-box warning"><span class="stat-label">Expiring soon</span><strong>${expiringSoon}</strong></div>
+        <div class="stat-box danger"><span class="stat-label">Expired</span><strong>${expired}</strong></div>
+        <div class="stat-box"><span class="stat-label">Active</span><strong>${active}</strong></div>
+      `;
+    }
+
+    function renderUpcomingAlerts() {
+      const upcoming = [...contracts]
+        .filter((contract) => selectedPlace === "all" || (contract.place || "General") === selectedPlace)
+        .sort((a, b) => new Date(a.expiry) - new Date(b.expiry))
+        .slice(0, 4);
+
+      if (!upcoming.length) {
+        upcomingList.innerHTML = '<div class="empty-state">No contracts scheduled yet.</div>';
+        return;
+      }
+
+      upcomingList.innerHTML = upcoming.map((contract) => {
+        const status = calculateStatus(contract.expiry);
+        const days = getDaysRemaining(contract.expiry);
+        return `
+          <div class="alert-item">
+            <div class="alert-meta">
+              <strong>${contract.title}</strong>
+              <span class="muted">${contract.place || "General"} • ${contract.vendor} • ${contract.expiry}</span>
+            </div>
+            <div class="badge ${status.class}">${days < 0 ? "Past due" : `${days}d left`}</div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function renderPlaceTabs() {
+      const placeTabs = document.getElementById("place-tabs");
+      if (!placeTabs) return;
+      const places = ["all", ...new Set(contracts.map((contract) => contract.place || "General"))];
+      placeTabs.innerHTML = places.map((place) => `<button type="button" class="place-tab ${selectedPlace === place ? "active" : ""}" data-place="${place}">${place === "all" ? "All Places" : place}</button>`).join("");
+      placeTabs.querySelectorAll(".place-tab").forEach((button) => {
+        button.addEventListener("click", () => {
+          selectedPlace = button.dataset.place;
+          renderContracts();
+        });
+      });
+    }
+
+    function exportCSV() {
+      const headers = ["title", "vendor", "place", "type", "expiry", "attachments"];
+      const rows = [headers, ...contracts.map((contract) => [
+        contract.title,
+        contract.vendor,
+        contract.place || "General",
+        contract.type || "General",
+        contract.expiry,
+        (contract.attachments || []).map((file) => file.name).join("; ")
+      ])];
+      const csv = rows.map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(",")).join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -882,24 +957,13 @@
       const reader = new FileReader();
       reader.onload = (event) => {
         const text = event.target.result;
-        const lines = text.split(/\r?\n/).filter(Boolean);
-        if (lines.length < 2) return;
-
-        const parsed = [];
-        for (let i = 1; i < lines.length; i += 1) {
-          const row = lines[i].split(",").map((cell) => cell.replace(/^"|"$/g, "").replace(/""/g, '"'));
-          if (row.length < 3) continue;
-          const [title, vendor, expiry] = row;
-          if (title && vendor && expiry) {
-            parsed.push({
-              title: title.trim(),
-              vendor: vendor.trim(),
-              expiry: expiry.trim(),
-              attachments: [],
-              notes: ""
-            });
-          }
-        }
+        const rows = parseCSV(text);
+        if (rows.length < 2) return;
+        const headers = rows[0].map((header) => textValue(header).toLowerCase());
+        const parsed = rows.slice(1)
+          .filter((row) => row.some((cell) => textValue(cell) !== ""))
+          .map((row) => mapContractFromRow(row, headers))
+          .filter((contract) => contract.title && contract.expiry);
 
         if (!parsed.length) {
           alert("No valid contract rows were found in the CSV file.");
@@ -915,12 +979,7 @@
     function readFileAsDataURL(file) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
-        reader.onload = () => resolve({
-          name: file.name,
-          type: file.type,
-          size: file.size,
-          dataUrl: reader.result
-        });
+        reader.onload = () => resolve({ name: file.name, type: file.type, size: file.size, dataUrl: reader.result });
         reader.onerror = () => reject(new Error("Could not read file."));
         reader.readAsDataURL(file);
       });
@@ -948,44 +1007,55 @@
     }
 
     function renderContracts() {
-      tableBody.innerHTML = "";
       const filteredContracts = getFilteredContracts();
-      filteredContracts.sort((a, b) => new Date(a.expiry) - new Date(b.expiry));
+      const grouped = filteredContracts.reduce((acc, contract) => {
+        const place = contract.place || "General";
+        if (!acc[place]) acc[place] = [];
+        acc[place].push(contract);
+        return acc;
+      }, {});
+
       renderStats();
       renderUpcomingAlerts();
+      renderPlaceTabs();
+      tableBody.innerHTML = "";
 
       if (!filteredContracts.length) {
-        tableBody.innerHTML = '<tr><td colspan="6" class="empty-state">No matching contracts found.</td></tr>';
+        tableBody.innerHTML = '<tr><td colspan="8" class="empty-state">No matching contracts found.</td></tr>';
         return;
       }
 
-      filteredContracts.forEach((contract) => {
-        const status = calculateStatus(contract.expiry);
-        const row = document.createElement("tr");
-        const index = contracts.findIndex((item) => item.title === contract.title && item.vendor === contract.vendor && item.expiry === contract.expiry);
-        const attachments = Array.isArray(contract.attachments) ? contract.attachments : [];
-        const attachmentMarkup = attachments.length
-          ? attachments.map((file) => `
-              <div>
-                <a class="attachment-link" href="${file.dataUrl}" target="_blank" download="${file.name}">${file.name}</a>
-              </div>
-            `).join("")
-          : '<span class="muted">No attachment</span>';
+      Object.keys(grouped).sort().forEach((place) => {
+        const placeContracts = grouped[place].sort((a, b) => new Date(a.expiry) - new Date(b.expiry));
+        const groupRow = document.createElement("tr");
+        groupRow.innerHTML = `<td colspan="8"><div class="sheet-header"><span>${place}</span><span>${placeContracts.length} contracts</span></div></td>`;
+        tableBody.appendChild(groupRow);
 
-        row.innerHTML = `
-          <td><strong>${contract.title}</strong></td>
-          <td>${contract.vendor}</td>
-          <td>${contract.expiry}</td>
-          <td><span class="badge ${status.class}">${status.label}</span></td>
-          <td>${attachmentMarkup}</td>
-          <td>
-            <button class="btn-reminder" onclick="openReminderEmail(${JSON.stringify(contract).replace(/'/g, "\\'")})">✉️ Mail</button>
-            <button class="btn-calendar" onclick="openCalendarReminder(${JSON.stringify(contract).replace(/'/g, "\\'")})">🗓️ Calendar</button>
-            <button class="btn-cal" onclick="generateICS('${contract.title.replace(/'/g, "\\'")}', '${contract.vendor.replace(/'/g, "\\'")}', '${contract.expiry}')">📅 Alert</button>
-            <button class="btn-danger" onclick="deleteContract(${index})">Delete</button>
-          </td>
-        `;
-        tableBody.appendChild(row);
+        placeContracts.forEach((contract) => {
+          const status = calculateStatus(contract.expiry);
+          const index = contracts.findIndex((item) => item.title === contract.title && item.vendor === contract.vendor && item.place === (contract.place || "General") && item.expiry === contract.expiry);
+          const attachmentMarkup = (contract.attachments || []).length
+            ? (contract.attachments || []).map((file) => `<div><a class="attachment-link" href="${file.dataUrl}" target="_blank" download="${file.name}">${file.name}</a></div>`).join("")
+            : '<span class="muted">No attachment</span>';
+
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td><strong>${contract.title}</strong></td>
+            <td>${contract.place || "General"}</td>
+            <td>${contract.vendor}</td>
+            <td>${contract.type || "General"}</td>
+            <td>${contract.expiry}</td>
+            <td><span class="badge ${status.class}">${status.label}</span></td>
+            <td>${attachmentMarkup}</td>
+            <td>
+              <button class="btn-reminder" onclick="openReminderEmail(${JSON.stringify(contract).replace(/'/g, "\\'")})">✉️ Mail</button>
+              <button class="btn-calendar" onclick="openCalendarReminder(${JSON.stringify(contract).replace(/'/g, "\\'")})">🗓️ Calendar</button>
+              <button class="btn-cal" onclick="generateICS('${(contract.title || 'Contract').replace(/'/g, "\\'")}', '${(contract.vendor || 'Vendor').replace(/'/g, "\\'")}', '${contract.expiry}')">📅 Alert</button>
+              <button class="btn-danger" onclick="deleteContract(${index})">Delete</button>
+            </td>
+          `;
+          tableBody.appendChild(row);
+        });
       });
     }
 
@@ -993,6 +1063,7 @@
       const contractName = document.getElementById("title").value.trim() || "Contract";
       const expiryDate = document.getElementById("expiry").value || "TBD";
       const vendor = document.getElementById("vendor").value.trim() || "Vendor";
+      const place = document.getElementById("contract-place").value.trim() || "General";
       const days = getDaysRemaining(expiryDate) || 0;
       const relativeStatus = expiryDate ? (days < 0 ? `expired ${Math.abs(days)} days ago` : `due in ${days} days`) : "pending review";
 
@@ -1005,6 +1076,7 @@
           "Hello Legal Team,",
           "",
           `This is an automated reminder for the ${contractName} contract with ${vendor}.`,
+          `Place: ${place}`,
           `Expiry date: ${expiryDate}.`,
           `Tracker status: ${relativeStatus}.`,
           "Recurring reminder: every 30 days.",
@@ -1020,15 +1092,17 @@
     sendReminderBtn.addEventListener("click", () => {
       const subject = reminderSubject.value.trim() || "Contract Renewal Reminder";
       const body = reminderMessage.value.trim() || "Please review the contract status and next steps.";
-
-      const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(LEGAL_EMAIL)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-      window.open(gmailUrl, "_blank");
+      const recipient = getReminderRecipient();
+      const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(recipient)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      openGoogleLink(gmailUrl);
     });
 
     openCalendarReminderBtn.addEventListener("click", () => {
       const contract = {
         title: document.getElementById("title").value.trim() || "Contract",
         vendor: document.getElementById("vendor").value.trim() || "Vendor",
+        place: document.getElementById("contract-place").value.trim() || "General",
+        type: document.getElementById("contract-type").value.trim() || "General",
         expiry: document.getElementById("expiry").value || new Date().toISOString().slice(0, 10)
       };
       openCalendarReminder(contract);
@@ -1040,42 +1114,41 @@
       syncFromGoogleSheet();
     });
 
+    if (reminderToInput) {
+      reminderToInput.value = LEGAL_EMAIL;
+    }
+
     tabButtons.forEach((button) => {
       button.addEventListener("click", () => {
         tabButtons.forEach((btn) => btn.classList.toggle("active", btn === button));
         tabPanels.forEach((panel) => panel.classList.toggle("active", panel.dataset.panel === button.dataset.tab));
-
-        if (button.dataset.tab === "reminder") {
-          populateReminderTemplate();
-        }
+        if (button.dataset.tab === "reminder") populateReminderTemplate();
       });
     });
 
     attachmentFilesInput.addEventListener("change", async (event) => {
       const files = Array.from(event.target.files || []);
       if (!files.length) return;
-
       for (const file of files) {
-        const fileData = await readFileAsDataURL(file);
-        attachmentDraft.push(fileData);
+        attachmentDraft.push(await readFileAsDataURL(file));
       }
-
       renderAttachmentPreview();
       event.target.value = "";
     });
 
     form.addEventListener("submit", (event) => {
       event.preventDefault();
-      const newContract = {
-        title: document.getElementById("title").value.trim(),
-        vendor: document.getElementById("vendor").value.trim(),
+      const newContract = normalizeContract({
+        title: document.getElementById("title").value,
+        vendor: document.getElementById("vendor").value,
+        place: document.getElementById("contract-place").value,
+        type: document.getElementById("contract-type").value,
         expiry: document.getElementById("expiry").value,
         attachments: attachmentDraft,
-        notes: attachmentNotes.value.trim()
-      };
+        notes: attachmentNotes.value
+      });
 
       if (!newContract.title || !newContract.vendor || !newContract.expiry) return;
-
       contracts.push(newContract);
       saveContracts();
       form.reset();
@@ -1106,6 +1179,7 @@
       saveContracts();
     };
 
+    loadContracts();
     renderContracts();
   </script>
 </body>
