@@ -691,7 +691,6 @@
       const endDateObj = new Date(eventDate);
       endDateObj.setDate(endDateObj.getDate() + 1);
       const endDate = formatGoogleDate(endDateObj.toISOString().slice(0, 10));
-      const recurrence = "RRULE:FREQ=DAILY;INTERVAL=30";
       const recipient = getReminderRecipient();
       const details = [
         `Contract: ${contract.title}`,
@@ -704,7 +703,20 @@
         "Recurring: Every 30 days"
       ].join("\n");
 
-      return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&details=${encodeURIComponent(details)}&location=${encodeURIComponent(contract.place || "General")}&dates=${startDate}/${endDate}&addattendees=${encodeURIComponent(recipient)}&recur=${encodeURIComponent(recurrence)}&sf=true&output=xml`;
+      const baseCalendarUrl = "https://calendar.google.com/calendar/u/0/r?pli=1";
+      const eventParams = new URLSearchParams({
+        action: "TEMPLATE",
+        text: title,
+        details,
+        location: contract.place || "General",
+        dates: `${startDate}/${endDate}`,
+        addattendees: recipient,
+        recur: "RRULE:FREQ=DAILY;INTERVAL=30",
+        sf: "true",
+        output: "xml"
+      });
+
+      return `${baseCalendarUrl}&${eventParams.toString()}`;
     }
 
     function openCalendarReminder(contract) {
