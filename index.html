@@ -6,26 +6,23 @@
   <title>Contract Expiry Tracker</title>
   <style>
     :root {
-      --bg: #07111f;
-      --panel: rgba(15, 23, 42, 0.9);
-      --card: #12233d;
-      --border: rgba(148, 163, 184, 0.2);
-      --text: #e5eefc;
-      --text-soft: #a5b4cf;
-      --primary: #60a5fa;
-      --primary-dark: #2563eb;
-      --danger: #f87171;
-      --warning: #fbbf24;
-      --success: #34d399;
-      --shadow: 0 18px 40px rgba(2, 6, 23, 0.45);
+      --bg: #f5f3ef;
+      --panel: rgba(255, 255, 255, 0.98);
+      --card: #ffffff;
+      --border: rgba(17, 24, 39, 0.08);
+      --text: #20252d;
+      --text-soft: #5d6673;
+      --primary: #4b5563;
+      --primary-dark: #2f3742;
+      --danger: #8a1f1f;
+      --warning: #8b6a1c;
+      --success: #2e6d47;
+      --shadow: 0 8px 18px rgba(17, 24, 39, 0.04);
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: Inter, "Segoe UI", sans-serif; }
     body {
-      background:
-        radial-gradient(circle at top left, rgba(96, 165, 250, 0.18), transparent 30%),
-        radial-gradient(circle at bottom right, rgba(52, 211, 153, 0.12), transparent 30%),
-        var(--bg);
+      background: var(--bg);
       color: var(--text);
       min-height: 100vh;
       padding: 32px 24px;
@@ -54,9 +51,9 @@
     }
 
     .status-chip {
-      background: rgba(96, 165, 250, 0.12);
-      color: var(--primary);
-      border: 1px solid rgba(96, 165, 250, 0.35);
+      background: rgba(17, 24, 39, 0.03);
+      color: var(--primary-dark);
+      border: 1px solid var(--border);
       padding: 0.7rem 1rem;
       border-radius: 999px;
       font-weight: 700;
@@ -71,7 +68,7 @@
     }
 
     .stat-box {
-      background: linear-gradient(180deg, rgba(18, 35, 61, 0.95), rgba(10, 18, 30, 0.9));
+      background: var(--card);
       border: 1px solid var(--border);
       border-radius: 18px;
       padding: 20px;
@@ -102,7 +99,7 @@
     }
 
     .card {
-      background: linear-gradient(180deg, rgba(18, 35, 61, 0.95), rgba(11, 20, 34, 0.98));
+      background: var(--card);
       border: 1px solid var(--border);
       border-radius: 22px;
       box-shadow: var(--shadow);
@@ -123,7 +120,7 @@
 
     .tab-btn {
       flex: 1;
-      background: rgba(148, 163, 184, 0.08);
+      background: #f8f7f5;
       border: 1px solid var(--border);
       color: var(--text-soft);
       padding: 0.75rem 0.9rem;
@@ -133,9 +130,18 @@
     }
 
     .tab-btn.active {
-      background: rgba(96, 165, 250, 0.12);
+      background: #f1f0ee;
       color: var(--text);
-      border-color: rgba(96, 165, 250, 0.38);
+      border-color: rgba(17, 24, 39, 0.12);
+    }
+
+    .reminder-box {
+      display: grid;
+      gap: 10px;
+      background: rgba(148, 163, 184, 0.03);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
     }
 
     .tab-panel { display: none; }
@@ -156,7 +162,7 @@
 
     input, select, textarea {
       width: 100%;
-      background: rgba(7, 17, 31, 0.8);
+      background: #faf9f7;
       border: 1px solid var(--border);
       color: var(--text);
       border-radius: 12px;
@@ -167,8 +173,8 @@
     }
 
     input:focus, select:focus, textarea:focus {
-      border-color: rgba(96, 165, 250, 0.75);
-      box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.12);
+      border-color: rgba(17, 24, 39, 0.2);
+      box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.04);
     }
 
     input::placeholder, textarea::placeholder { color: #7789ad; }
@@ -184,9 +190,10 @@
     button:hover { transform: translateY(-1px); }
 
     .btn-primary {
-      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-      color: white;
+      background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+      color: #ffffff;
       padding: 0.9rem 1rem;
+      box-shadow: none;
     }
 
     .btn-secondary {
@@ -206,9 +213,27 @@
     }
 
     .btn-cal {
-      background: rgba(96, 165, 250, 0.12);
+      background: rgba(107, 114, 128, 0.08);
       color: var(--text);
-      border: 1px solid rgba(96, 165, 250, 0.3);
+      border: 1px solid rgba(107, 114, 128, 0.28);
+      padding: 0.35rem 0.6rem;
+      font-size: 0.8rem;
+      margin-right: 0.4rem;
+    }
+
+    .btn-reminder {
+      background: rgba(31, 122, 74, 0.08);
+      color: var(--success);
+      border: 1px solid rgba(31, 122, 74, 0.28);
+      padding: 0.35rem 0.6rem;
+      font-size: 0.8rem;
+      margin-right: 0.4rem;
+    }
+
+    .btn-calendar {
+      background: rgba(107, 114, 128, 0.08);
+      color: var(--primary-dark);
+      border: 1px solid rgba(107, 114, 128, 0.25);
       padding: 0.35rem 0.6rem;
       font-size: 0.8rem;
       margin-right: 0.4rem;
@@ -354,6 +379,8 @@
         <div class="tabs">
           <button type="button" class="tab-btn active" data-tab="details">Details</button>
           <button type="button" class="tab-btn" data-tab="attachments">Attachments</button>
+          <button type="button" class="tab-btn" data-tab="reminder">Reminder</button>
+          <button type="button" class="tab-btn" data-tab="sync">Sync</button>
         </div>
 
         <form id="contract-form">
@@ -383,6 +410,41 @@
                 <input id="attachment-files" type="file" multiple accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.csv,.xlsx,.txt" />
               </div>
               <div class="attachment-list" id="attachment-preview"></div>
+            </div>
+          </div>
+
+          <div class="tab-panel" data-panel="reminder">
+            <div class="reminder-box">
+              <div class="form-group">
+                <label for="reminder-to">To</label>
+                <input id="reminder-to" type="email" value="legal@tractorjunction.com" readonly />
+              </div>
+              <div class="form-group">
+                <label for="reminder-subject">Subject</label>
+                <input id="reminder-subject" type="text" placeholder="Contract renewal reminder" />
+              </div>
+              <div class="form-group">
+                <label for="reminder-message">Message</label>
+                <textarea id="reminder-message" rows="5" placeholder="Please review the contract renewal status and take the necessary action."></textarea>
+              </div>
+              <button type="button" class="btn-primary" id="send-reminder">Open Gmail Reminder</button>
+              <button type="button" class="btn-secondary" id="open-calendar-reminder">Open Google Calendar Reminder</button>
+            </div>
+          </div>
+
+          <div class="tab-panel" data-panel="sync">
+            <div class="reminder-box">
+              <div class="form-group">
+                <label for="sheet-url">Google Sheet URL</label>
+                <input id="sheet-url" type="url" value="https://docs.google.com/spreadsheets/d/1ZBkrnEG-QfjnsLq9c4fIeNuroKYAvhymg4n-GF2HJVA/export?format=csv&gid=1812251719" />
+              </div>
+              <div class="form-group">
+                <label for="sheet-gid">Sheet GID</label>
+                <input id="sheet-gid" type="text" value="1812251719" placeholder="Enter gid if needed" />
+              </div>
+              <button type="button" class="btn-primary" id="sync-sheet-btn">Sync from Google Sheet</button>
+              <button type="button" class="btn-secondary" id="preview-sheet-btn">Preview Sheet Data</button>
+              <div class="muted" id="sync-status">Uses the published Google Sheet CSV export and keeps the tracker synced with the sheet data.</div>
             </div>
           </div>
 
@@ -435,6 +497,7 @@
 
   <script>
     const STORAGE_KEY = "contract-tracker-contracts";
+    const DEFAULT_SHEET_URL = "https://docs.google.com/spreadsheets/d/1ZBkrnEG-QfjnsLq9c4fIeNuroKYAvhymg4n-GF2HJVA/export?format=csv&gid=1812251719";
     const form = document.getElementById("contract-form");
     const tableBody = document.getElementById("table-body");
     const stats = document.getElementById("stats");
@@ -449,8 +512,79 @@
     const attachmentFilesInput = document.getElementById("attachment-files");
     const attachmentPreview = document.getElementById("attachment-preview");
     const attachmentNotes = document.getElementById("attachment-notes");
+    const reminderSubject = document.getElementById("reminder-subject");
+    const reminderMessage = document.getElementById("reminder-message");
+    const sendReminderBtn = document.getElementById("send-reminder");
+    const openCalendarReminderBtn = document.getElementById("open-calendar-reminder");
+    const sheetUrlInput = document.getElementById("sheet-url");
+    const sheetGidInput = document.getElementById("sheet-gid");
+    const syncStatusEl = document.getElementById("sync-status");
+    const syncSheetBtn = document.getElementById("sync-sheet-btn");
+    const previewSheetBtn = document.getElementById("preview-sheet-btn");
+
+    const LEGAL_EMAIL = "legal@tractorjunction.com";
 
     let attachmentDraft = [];
+
+    function formatGoogleDate(dateString) {
+      const date = new Date(dateString);
+      if (Number.isNaN(date.getTime())) return new Date().toISOString().slice(0, 10).replace(/-/g, "");
+      const yyyy = date.getFullYear();
+      const mm = String(date.getMonth() + 1).padStart(2, "0");
+      const dd = String(date.getDate()).padStart(2, "0");
+      return `${yyyy}${mm}${dd}`;
+    }
+
+    function buildReminderContent(contract) {
+      const status = calculateStatus(contract.expiry);
+      const days = getDaysRemaining(contract.expiry);
+      const statusText = days < 0 ? `expired ${Math.abs(days)} days ago` : `due in ${days} days`;
+
+      return {
+        subject: `Contract Reminder: ${contract.title} (${contract.vendor})`,
+        body: [
+          "Hello Legal Team,",
+          "",
+          `This is an automated reminder for the ${contract.title} contract with ${contract.vendor}.`,
+          `Current status: ${status.label}.`,
+          `Expiry date: ${contract.expiry}.`,
+          `Tracker status: ${statusText}.`,
+          "Recurring reminder: every 30 days.",
+          "",
+          "Please review the contract, confirm renewal/closure status, and take the necessary action.",
+          "",
+          "Regards,",
+          "Contract Tracker System"
+        ].join("\n")
+      };
+    }
+
+    function openReminderEmail(contract) {
+      const reminder = buildReminderContent(contract);
+      const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(LEGAL_EMAIL)}&su=${encodeURIComponent(reminder.subject)}&body=${encodeURIComponent(reminder.body)}`;
+      window.open(gmailUrl, "_blank");
+    }
+
+    function openCalendarReminder(contract) {
+      const title = `${contract.title} Contract Reminder`;
+      const eventDate = new Date(contract.expiry);
+      const startDate = formatGoogleDate(contract.expiry);
+      const endDateObj = new Date(eventDate);
+      endDateObj.setDate(endDateObj.getDate() + 1);
+      const endDate = formatGoogleDate(endDateObj.toISOString().slice(0, 10));
+      const recurrence = "RRULE:FREQ=DAILY;INTERVAL=30";
+      const details = [
+        `Contract: ${contract.title}`,
+        `Vendor: ${contract.vendor}`,
+        `Expiry Date: ${contract.expiry}`,
+        `Tracker Status: ${calculateStatus(contract.expiry).label}`,
+        `Reminder sent to: ${LEGAL_EMAIL}`,
+        "Recurring: Every 30 days"
+      ].join("\n");
+
+      const calendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&details=${encodeURIComponent(details)}&location=${encodeURIComponent("Legal Team")}&dates=${startDate}/${endDate}&addattendees=${encodeURIComponent(LEGAL_EMAIL)}&recur=${encodeURIComponent(recurrence)}&sf=true&output=xml`;
+      window.open(calendarUrl, "_blank");
+    }
 
     const defaultContracts = [
       { title: "Cloud Hosting Renewal", vendor: "AWS", expiry: "2026-09-10", attachments: [], notes: "" },
@@ -599,6 +733,127 @@
       URL.revokeObjectURL(url);
     }
 
+    function parseCSV(text) {
+      const rows = [];
+      let currentRow = [];
+      let currentValue = "";
+      let inQuotes = false;
+
+      for (let i = 0; i < text.length; i += 1) {
+        const char = text[i];
+        const nextChar = text[i + 1];
+
+        if (char === '"') {
+          if (inQuotes && nextChar === '"') {
+            currentValue += '"';
+            i += 1;
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (char === ',' && !inQuotes) {
+          currentRow.push(currentValue);
+          currentValue = "";
+        } else if ((char === '\n' || char === '\r') && !inQuotes) {
+          if (char === '\r' && nextChar === '\n') i += 1;
+          currentRow.push(currentValue);
+          if (currentRow.some((cell) => cell.trim() !== "")) {
+            rows.push(currentRow);
+          }
+          currentRow = [];
+          currentValue = "";
+        } else {
+          currentValue += char;
+        }
+      }
+
+      if (currentValue.length || currentRow.length) {
+        currentRow.push(currentValue);
+        if (currentRow.some((cell) => cell.trim() !== "")) {
+          rows.push(currentRow);
+        }
+      }
+
+      return rows;
+    }
+
+    function buildSheetExportUrl(rawUrl) {
+      const sheetUrl = (rawUrl || DEFAULT_SHEET_URL).trim();
+      if (!sheetUrl) return DEFAULT_SHEET_URL;
+      if (sheetUrl.includes('/export?')) return sheetUrl;
+
+      const gid = (sheetGidInput.value || "1812251719").trim();
+      const baseUrl = sheetUrl.replace(/\/edit.*$/, '').replace(/\?.*$/, '');
+      return `${baseUrl}/export?format=csv&gid=${gid}`;
+    }
+
+    function normalizeSheetContract(row) {
+      const keyMap = {};
+      row.forEach((value, index) => {
+        keyMap[index] = value ? value.trim() : "";
+      });
+
+      const title = row.findIndex((value) => /contract|name/i.test(value)) >= 0
+        ? row[row.findIndex((value) => /contract|name/i.test(value) && value)]
+        : "";
+
+      return {
+        title: row[0] || "",
+        vendor: row[1] || "",
+        expiry: row[2] || "",
+        notes: row[3] || ""
+      };
+    }
+
+    async function syncFromGoogleSheet() {
+      const exportUrl = buildSheetExportUrl(sheetUrlInput.value || DEFAULT_SHEET_URL);
+      syncStatusEl.textContent = "Syncing from Google Sheet...";
+
+      try {
+        const response = await fetch(exportUrl, { mode: "cors" });
+        if (!response.ok) throw new Error(`Google Sheet request failed: ${response.status}`);
+
+        const csvText = await response.text();
+        const rows = parseCSV(csvText);
+
+        if (rows.length < 2) {
+          throw new Error("The sheet appears empty or the export is not readable.");
+        }
+
+        const sheetRows = rows.slice(1).filter((row) => row.some((cell) => (cell || "").trim()));
+        const parsedContracts = sheetRows.map((row) => {
+          const values = row.map((cell) => (cell || "").trim());
+          const title = values[0] || "";
+          const vendor = values[1] || "";
+          const expiry = values[2] || "";
+          const notes = values[3] || "";
+
+          return { title, vendor, expiry, attachments: [], notes };
+        }).filter((contract) => contract.title && contract.expiry);
+
+        if (!parsedContracts.length) {
+          throw new Error("No valid contract rows were found. Please confirm the sheet fields are in the order: Contract, Vendor, Expiry Date.");
+        }
+
+        const merged = [...contracts];
+        parsedContracts.forEach((contract) => {
+          const key = `${contract.title}::${contract.vendor}::${contract.expiry}`;
+          const existingIndex = merged.findIndex((item) => `${item.title}::${item.vendor}::${item.expiry}` === key);
+          if (existingIndex >= 0) {
+            merged[existingIndex] = { ...merged[existingIndex], ...contract };
+          } else {
+            merged.push(contract);
+          }
+        });
+
+        contracts = merged;
+        saveContracts();
+        syncStatusEl.textContent = `Synced ${parsedContracts.length} contracts from the Google Sheet.`;
+      } catch (error) {
+        syncStatusEl.textContent = error.message || "Unable to sync from Google Sheet right now.";
+        console.error(error);
+      }
+    }
+
     function exportCSV() {
       const rows = [
         ["title", "vendor", "expiry", "attachments"],
@@ -724,7 +979,9 @@
           <td><span class="badge ${status.class}">${status.label}</span></td>
           <td>${attachmentMarkup}</td>
           <td>
-            <button class="btn-cal" onclick="generateICS('${contract.title.replace(/'/g, "\\'")}', '${contract.vendor.replace(/'/g, "\\'")}', '${contract.expiry}')">📅 Add Alert</button>
+            <button class="btn-reminder" onclick="openReminderEmail(${JSON.stringify(contract).replace(/'/g, "\\'")})">✉️ Mail</button>
+            <button class="btn-calendar" onclick="openCalendarReminder(${JSON.stringify(contract).replace(/'/g, "\\'")})">🗓️ Calendar</button>
+            <button class="btn-cal" onclick="generateICS('${contract.title.replace(/'/g, "\\'")}', '${contract.vendor.replace(/'/g, "\\'")}', '${contract.expiry}')">📅 Alert</button>
             <button class="btn-danger" onclick="deleteContract(${index})">Delete</button>
           </td>
         `;
@@ -732,10 +989,65 @@
       });
     }
 
+    function populateReminderTemplate() {
+      const contractName = document.getElementById("title").value.trim() || "Contract";
+      const expiryDate = document.getElementById("expiry").value || "TBD";
+      const vendor = document.getElementById("vendor").value.trim() || "Vendor";
+      const days = getDaysRemaining(expiryDate) || 0;
+      const relativeStatus = expiryDate ? (days < 0 ? `expired ${Math.abs(days)} days ago` : `due in ${days} days`) : "pending review";
+
+      if (!reminderSubject.value.trim()) {
+        reminderSubject.value = `Contract Renewal Reminder: ${contractName}`;
+      }
+
+      if (!reminderMessage.value.trim()) {
+        reminderMessage.value = [
+          "Hello Legal Team,",
+          "",
+          `This is an automated reminder for the ${contractName} contract with ${vendor}.`,
+          `Expiry date: ${expiryDate}.`,
+          `Tracker status: ${relativeStatus}.`,
+          "Recurring reminder: every 30 days.",
+          "",
+          "Please review the document and take the necessary action.",
+          "",
+          "Regards,",
+          "Contract Tracker System"
+        ].join("\n");
+      }
+    }
+
+    sendReminderBtn.addEventListener("click", () => {
+      const subject = reminderSubject.value.trim() || "Contract Renewal Reminder";
+      const body = reminderMessage.value.trim() || "Please review the contract status and next steps.";
+
+      const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(LEGAL_EMAIL)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+      window.open(gmailUrl, "_blank");
+    });
+
+    openCalendarReminderBtn.addEventListener("click", () => {
+      const contract = {
+        title: document.getElementById("title").value.trim() || "Contract",
+        vendor: document.getElementById("vendor").value.trim() || "Vendor",
+        expiry: document.getElementById("expiry").value || new Date().toISOString().slice(0, 10)
+      };
+      openCalendarReminder(contract);
+    });
+
+    syncSheetBtn.addEventListener("click", syncFromGoogleSheet);
+    previewSheetBtn.addEventListener("click", () => {
+      sheetUrlInput.value = sheetUrlInput.value || DEFAULT_SHEET_URL;
+      syncFromGoogleSheet();
+    });
+
     tabButtons.forEach((button) => {
       button.addEventListener("click", () => {
         tabButtons.forEach((btn) => btn.classList.toggle("active", btn === button));
         tabPanels.forEach((panel) => panel.classList.toggle("active", panel.dataset.panel === button.dataset.tab));
+
+        if (button.dataset.tab === "reminder") {
+          populateReminderTemplate();
+        }
       });
     });
 
